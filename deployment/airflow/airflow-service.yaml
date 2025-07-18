@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: airflow-webserver
+  namespace: osclimate
+spec:
+  selector:
+    app: airflow
+  ports:
+  - protocol: TCP
+    port: 8080 # Service port
+    targetPort: 8080 # Container port
+    # nodePort: 30080 # NodePort (optional; if omitted, Kubernetes assigns one automatically)
+  type: ClusterIP

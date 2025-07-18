@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: airflow-dags-pv
+  namespace: airflow
+spec:
+  capacity:
+    storage: 2Gi # Adjust storage size as needed
+  volumeMode: Filesystem
+  accessModes:
+  - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: "local-storage" # Set to your cluster's storage class
+  local:
+    path: /Users/jpaulraj/kind-development/dags/ # Path to the local DAGs directory on the node
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - osclimate-cluster-worker # Name of the node where your local DAGs directory is located

@@ -1,0 +1,30 @@
+# Ignore node_modules folder
+node_modules/
+docker_tar_files/
+logs/
+redis/
+scripts/docker_tar_files/
+# Ignore log files
+*.log
+
+# Ignore all `.env` files
+*.env
+
+# Ignore compiled Python files
+*.pyc
+__pycache__/
+
+# Ignore IDE files
+.idea/
+.vscode/
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
+*.-value.yaml
+kind-config.yaml
+airflow-values.yaml
+minio-values.yaml
+trino-values.yaml
+*port-forward*.log
+docker_images_bundle.zip

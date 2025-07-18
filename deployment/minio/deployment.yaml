@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+  labels:
+    app: minio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      volumes:
+      - name: minio-storage
+        emptyDir: {}
+      containers:
+      - name: minio
+        image: osclimate/minio:1.0
+        args:
+        - server
+        - /data
+        - '--console-address=:9001'
+        volumeMounts:
+        - name: minio-storage
+          mountPath: /data
+        env:
+        - name: MINIO_ROOT_USER
+          value: "minioAdmin"
+        - name: MINIO_ROOT_PASSWORD
+          value: "minio1234"
+        ports:
+        - containerPort: 9000
+          protocol: TCP
+        - containerPort: 9001
+          protocol: TCP
+
+      - name: configure-mc
+        image: osclimate/minio:1.0
+        command:
+        - /bin/sh
+        - -c
+        - |
+          until curl -s http://localhost:9000/minio/health/live; do
+            echo "Waiting for MinIO..."
+            sleep 2
+          done
+          mc alias set local http://localhost:9000 minioAdmin minio1234
+          mc mb --ignore-existing local/pcaf
+          tail -f /dev/null

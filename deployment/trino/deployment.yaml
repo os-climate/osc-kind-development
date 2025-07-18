@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trino
+  labels:
+    app: trino
+spec:
+  replicas: 1 # One replica for development (can scale up later)
+  selector:
+    matchLabels:
+      app: trino
+  template:
+    metadata:
+      labels:
+        app: trino
+    spec:
+      containers:
+      - name: trino
+        image: osclimate/trino:1.0
+        ports:
+        - containerPort: 8081 # Change the internal port to 8081
+        env:
+        - name: JAVA_TOOL_OPTIONS
+          value: "-Xmx4G -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+        - name: COORDINATOR
+          value: "true" # Set as coordinator
+        - name: NODE_ENVIRONMENT
+          value: "development"
+        - name: NODE_ID
+          value: "trino-node" # Unique identifier for the node
+        - name: HTTP_SERVER_HTTP_PORT
+          value: "8081" # Trino API Web UI port
+        - name: DISCOVERY_SERVER_ENABLED
+          value: "true" # Enable discovery for workers
+        - name: NODE_SCHEDULER_INCLUDE_COORDINATOR
+          value: "true" # Allow the coordinator to act as a worker
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/trino # Mounts configuration files
+        - name: data-volume
+          mountPath: /var/trino # Data storage (could be configured with persistent storage)
+        - name: catalog-volume
+          mountPath: /etc/trino/catalog
+      volumes:
+      - name: config-volume
+        configMap:
+          name: trino-config
+      - name: data-volume
+        emptyDir: {} # Can be replaced with PersistentVolumeClaim for production
+      - name: catalog-volume
+        configMap:
+          name: trino-catalog

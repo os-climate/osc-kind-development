@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: airflow-dags-pvc
+  namespace: airflow
+spec:
+  accessModes:
+  - ReadWriteMany # Allow read-write access to multiple pods
+  resources:
+    requests:
+      storage: 1Gi # Match the capacity of the PV
+  storageClassName: "local-storage" # Match the PV's storage class

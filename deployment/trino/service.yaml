@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: trino
+spec:
+  selector:
+    app: trino
+  ports:
+  - protocol: TCP
+    port: 8081
+    targetPort: 8081 # API/WebUI Port
+  type: ClusterIP

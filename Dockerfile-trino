@@ -1,0 +1,2 @@
+# FROM trinodb/trino:472
+FROM quay.io/osclimate/trino:latest

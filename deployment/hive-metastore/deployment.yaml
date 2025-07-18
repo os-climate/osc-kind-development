@@ -1,0 +1,61 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: hive-metastore
+  namespace: osclimate
+  labels:
+    app: hive-metastore
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hive-metastore
+  template:
+    metadata:
+      labels:
+        app: hive-metastore
+    spec:
+      volumes:
+      - name: hadoop-config
+        emptyDir: {}
+      - name: hive-config
+        emptyDir: {}
+      containers:
+      - name: hive-metastore
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: S3_ENDPOINT_URL
+          value: 'http://minio:9000'
+        - name: S3_PREFIX
+          value: data
+        - name: S3_BUCKET
+          value: pcaf
+        - name: DATABASE_HOST
+          value: hive-metastore-db
+        - name: DATABASE_DB
+          value: hivemetadb
+        - name: DATABASE_PORT
+          value: "5432"
+        - name: DATABASE_USER
+          value: hive
+        - name: DATABASE_PASSWORD
+          value: hivemeta123$
+        ports:
+        - name: thrift
+          containerPort: 9083
+          protocol: TCP
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: hadoop-config
+          mountPath: /opt/hadoop/etc/hadoop
+        - name: hive-config
+          mountPath: /opt/hive-metastore/conf
+        envFrom:
+        - secretRef:
+            name: hive-metastore-secret
+        image: 'quay.io/osclimate/hive-metastore:latest'
+      restartPolicy: Always

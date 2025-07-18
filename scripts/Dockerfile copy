@@ -1,0 +1,48 @@
+# FROM apache/airflow:3.0.2-python3.9
+
+# # Install OpenJDK 17 as root
+# USER root
+# RUN apt-get update \
+#   && apt-get install -y --no-install-recommends \
+#          openjdk-17-jre-headless \
+#   && apt-get autoremove -yqq --purge \
+#   && apt-get clean \
+#   && rm -rf /var/lib/apt/lists/*
+
+# # Set Java environment
+# ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+# ENV PATH="${JAVA_HOME}/bin:$PATH"
+
+# # Switch back to airflow user
+# USER airflow
+
+# # Install Trino provider package
+# RUN pip install --no-cache-dir apache-airflow-providers-trino
+
+# FROM apache/airflow:3.1.0-python3.9
+FROM apache/airflow:latest
+
+# Install OpenJDK 17 as root
+USER root
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+         openjdk-17-jre-headless \
+  && apt-get autoremove -yqq --purge \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
+# Set Java environment
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+ENV PATH="${JAVA_HOME}/bin:$PATH"
+
+# Switch back to airflow user
+USER airflow
+
+# ✅ Add missing extras like Flask AppBuilder and Postgres support
+RUN pip install --no-cache-dir \
+    'apache-airflow[postgres]==3.0.2' \
+    apache-airflow-providers-trino \
+    apache-airflow-providers-fab \
+    apache-airflow[celery] \
+
+

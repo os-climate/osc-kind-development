@@ -1,0 +1,29 @@
+kind: Deployment
+metadata:
+  name: airflow-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: airflow-worker
+  template:
+    metadata:
+      labels:
+        component: airflow-worker
+    spec:
+      containers:
+      - name: worker
+        image: apache/airflow:3.0.2-python3.9
+        command: [ "airflow", "celery", "worker" ]
+        env:
+        - name: AIRFLOW__CORE__EXECUTOR
+          value: CeleryExecutor
+        - name: AIRFLOW__CORE__SQL_ALCHEMY_CONN
+          value: postgresql+psycopg2://airflow:airflow123$@postgres:5432/airflow
+        - name: AIRFLOW__CELERY__BROKER_URL
+          value: redis://redis:6379/0
+        - name: AIRFLOW__CELERY__RESULT_BACKEND
+          # value: db+postgresql://airflow:airflow@postgres/airflow
+          value: db+postgresql://airflow:airflow123$@postgres:5432/airflow
+        - name: AIRFLOW__CORE__FERNET_KEY
+          value: dGhpc2lzYWZlcm5ldGtleWZvcmFpcmZsb3cxMjM=

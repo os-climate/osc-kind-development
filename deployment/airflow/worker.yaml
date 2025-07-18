@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: airflow-worker
+  template:
+    metadata:
+      labels:
+        component: airflow-worker
+    spec:
+      containers:
+      - name: worker
+        image: osclimate/airflow:2.9.3
+        # command: [ "airflow", "celery", "worker" ]
+        securityContext:
+          runAsUser: 50000
+          runAsGroup: 50000
+        args:
+        - bash
+        - -c
+        - exec airflow celery worker
+        env:
+        - name: AIRFLOW__CORE__EXECUTOR
+          value: CeleryExecutor
+        - name: AIRFLOW__CORE__SQL_ALCHEMY_CONN
+          value: postgresql+psycopg2://airflow:airflow@postgres/airflow
+        - name: AIRFLOW__CELERY__BROKER_URL
+          value: redis://redis:6379/0
+        # - name: AIRFLOW__CELERY__RESULT_BACKEND
+        #   value: db+postgresql://airflow:airflow@postgres/airflow
+        - name: AIRFLOW__CELERY__RESULT_BACKEND
+          value: redis://redis:6379/0
+        - name: AIRFLOW__CORE__FERNET_KEY
+          value: dGhpc2lzYWZlcm5ldGtleWZvcmFpcmZsb3cxMjM=
+        - name: AIRFLOW__CELERY__WORKER_PREFETCH_MULTIPLIER
+          value: "1"
+        - name: AIRFLOW__LOGGING__BASE_LOG_FOLDER
+          value: "/opt/airflow/logs"
+        volumeMounts:
+        - name: dags
+          mountPath: /opt/airflow/dags
+        - name: logs
+          mountPath: /opt/airflow/logs
+      volumes:
+      - name: dags
+        persistentVolumeClaim:
+          claimName: airflow-dags-pvc
+      - name: logs
+        persistentVolumeClaim:
+          claimName: airflow-logs-pvc

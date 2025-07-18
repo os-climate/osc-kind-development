@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hive-metastore-db
+  namespace: osclimate
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hive-metastore-db
+  template:
+    metadata:
+      labels:
+        app: hive-metastore-db
+    spec:
+      containers:
+      - name: hive-metastore-db
+        image: postgres:14
+        envFrom:
+        - secretRef:
+            name: hive-metastore-secret
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - mountPath: /var/lib/postgresql/data
+          name: postgres-data
+      volumes:
+      - name: postgres-data
+        emptyDir: {}

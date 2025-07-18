@@ -1,0 +1,252 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow
+  labels:
+    app: airflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow
+  template:
+    metadata:
+      labels:
+        app: airflow
+    spec:
+      securityContext:
+        runAsUser: 50000 # run as airflow user
+        runAsGroup: 50000
+        # fsGroup: 50000      # uncomment if you want group permissions on volumes
+      containers:
+      - name: airflow-webserver
+        image: osclimate/airflow:2.9.3
+        securityContext:
+          runAsUser: 50000
+          runAsGroup: 50000
+        # args:
+        # - bash
+        # - '-c'
+        # - exec airflow api-server
+        command: [ "/bin/bash", "-c" ]
+        # args:
+        # - |
+        #   airflow db migrate && \
+        #   airflow api-server
+        args:
+        - |
+          airflow db migrate && \
+          airflow users create \
+            --username "$_AIRFLOW_WWW_USER_USERNAME" \
+            --password "$_AIRFLOW_WWW_USER_PASSWORD" \
+            --firstname "$_AIRFLOW_WWW_USER_FIRSTNAME" \
+            --lastname "$_AIRFLOW_WWW_USER_LASTNAME" \
+            --role "$_AIRFLOW_WWW_USER_ROLE" \
+            --email "$_AIRFLOW_WWW_USER_EMAIL" && \
+          airflow api-server
+        volumeMounts:
+        - name: dags
+          mountPath: /opt/airflow/dags
+        - name: logs
+          mountPath: /opt/airflow/logs
+        env:
+        - name: AIRFLOW__CORE__EXECUTOR
+          # value: KubernetesExecutor
+          # value: LocalExecutor
+          value: CeleryExecutor
+        # - name: AIRFLOW__WEBSERVER__SECRET_KEY
+        - name: AIRFLOW__API__SECRET_KEY
+          value: airflow
+        # - name: AIRFLOW__CORE__SQL_ALCHEMY_CONN
+        - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+          value: postgresql+psycopg2://airflow:airflow123$@postgres:5432/airflow
+        - name: AIRFLOW_CONN_S3
+          value: aws://minioadmin:minioadmin@/?endpoint_url=http:%2F%2Fminio:9000
+        - name: AIRFLOW_CONN_TRINO_CONNECTION
+          value: trino://admin:@trino:8080/
+        - name: _AIRFLOW_DB_MIGRATE
+          value: "true"
+        - name: _AIRFLOW_WWW_USER_CREATE
+          value: "true"
+        - name: _AIRFLOW_WWW_USER_USERNAME
+          value: airflow
+        - name: _AIRFLOW_WWW_USER_PASSWORD
+          value: airflow
+        - name: _AIRFLOW_WWW_USER_ROLE
+          value: Admin
+        - name: _AIRFLOW_WWW_USER_FIRSTNAME
+          value: Airflow
+        - name: _AIRFLOW_WWW_USER_LASTNAME
+          value: Admin
+        - name: _AIRFLOW_WWW_USER_EMAIL
+          value: airflowadmin@example.com
+        - name: AIRFLOW__CORE__AUTH_MANAGER
+          value: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+        - name: AIRFLOW__LOGGING__LOGGING_LEVEL
+          value: INFO
+        - name: AIRFLOW__SCHEDULER__USE_DAG_PROCESSOR
+          value: "True"
+        - name: AIRFLOW__SCHEDULER__PARSE_DAGS_INTERVAL
+          value: "30"
+        - name: AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL
+          value: "30"
+
+        - name: AIRFLOW__LOGGING__REMOTE_LOGGING
+          value: "False"
+        - name: AIRFLOW__LOGGING__BASE_LOG_FOLDER
+          value: "/opt/airflow/logs"
+        - name: AIRFLOW__CELERY__RESULT_BACKEND
+          value: db+postgresql://airflow:airflow@postgres/airflow
+        - name: AIRFLOW__CORE__FERNET_KEY
+          value: dGhpc2lzYWZlcm5ldGtleWZvcmFpcmZsb3cxMjM=
+        # - name: AIRFLOW__CORE__REMOTE_LOG_CONN_ID
+        #   value: "s3_minio"
+        # - name: AIRFLOW__CORE__REMOTE_BASE_LOG_FOLDER
+        #   value: "s3://airflow-logs"
+
+        # Optional: tune logging
+        # - name: AIRFLOW__LOGGING__ENCRYPT_S3_LOGS
+        #   value: "false"
+        # - name: AIRFLOW__LOGGING__LOGGING_LEVEL
+        #   value: "INFO"
+
+        # # Define the MinIO connection string
+        # - name: AIRFLOW_CONN_S3_MINIO
+        #   value: "s3://minioadmin:minioadmin@minio.minio.svc.cluster.local:9000"
+        ports:
+        - containerPort: 8080
+
+      - name: scheduler
+        image: osclimate/airflow:2.9.3
+        securityContext:
+          runAsUser: 50000
+          runAsGroup: 50000
+        args:
+        - bash
+        - '-c'
+        - exec airflow scheduler
+        volumeMounts:
+        - name: dags
+          mountPath: /opt/airflow/dags
+        - name: logs
+          mountPath: /opt/airflow/logs
+        env:
+        - name: AIRFLOW__CORE__EXECUTOR
+          # value: "LocalExecutor"
+          value: CeleryExecutor
+        - name: AIRFLOW__API__SECRET_KEY
+          value: airflow
+        - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+          value: "postgresql+psycopg2://airflow:airflow123$@postgres:5432/airflow"
+        - name: AIRFLOW_CONN_S3
+          value: aws://minioAdmin:minio1234/?endpoint_url=http:%2F%2Fminio:9000
+        - name: AIRFLOW_CONN_TRINO_CONNECTION
+          value: trino://admin:@trino:8080/
+        # - name: _PIP_ADDITIONAL_REQUIREMENTS
+        #   value: apache-airflow-providers-trino
+        - name: _AIRFLOW_WWW_USER_USERNAME
+          value: airflow
+        - name: _AIRFLOW_WWW_USER_PASSWORD
+          value: airflow
+        - name: AIRFLOW__LOGGING__LOGGING_LEVEL
+          value: INFO
+        - name: AIRFLOW__CORE__DAGS_FOLDER
+          value: /opt/airflow/dags
+        - name: AIRFLOW__SCHEDULER__USE_DAG_PROCESSOR
+          value: "True"
+        - name: AIRFLOW__SCHEDULER__PARSE_DAGS_INTERVAL
+          value: "30"
+        - name: AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL
+          value: "30"
+        - name: AIRFLOW__LOGGING__REMOTE_LOGGING
+          value: "False"
+        - name: AIRFLOW__LOGGING__BASE_LOG_FOLDER
+          value: "/opt/airflow/logs"
+        - name: AIRFLOW__CELERY__BROKER_URL
+          value: redis://redis:6379/0
+        - name: AIRFLOW__CELERY__RESULT_BACKEND
+          value: db+postgresql://airflow:airflow@postgres/airflow
+        - name: AIRFLOW__CORE__FERNET_KEY
+          value: dGhpc2lzYWZlcm5ldGtleWZvcmFpcmZsb3cxMjM=
+      # - name: triggerer
+      #   image: osclimate/airflow:2.9.3
+      #   securityContext:
+      #     runAsUser: 50000
+      #     runAsGroup: 50000
+      #   args:
+      #   - bash
+      #   - '-c'
+      #   - exec airflow triggerer
+      #   volumeMounts:
+      #   - name: dags
+      #     mountPath: /opt/airflow/dags
+      #   - name: logs
+      #     mountPath: /opt/airflow/logs
+      #   env:
+      #   - name: AIRFLOW__CORE__EXECUTOR
+      #     # value: "LocalExecutor"
+      #     value: CeleryExecutor
+      #   - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+      #     value: "postgresql+psycopg2://airflow:airflow123$@postgres:5432/airflow"
+      #   - name: AIRFLOW__LOGGING__LOGGING_LEVEL
+      #     value: INFO
+      #   - name: AIRFLOW__CORE__DAGS_FOLDER
+      #     value: /opt/airflow/dags
+      #   - name: AIRFLOW__SCHEDULER__USE_DAG_PROCESSOR
+      #     value: "True"
+      #   - name: AIRFLOW__SCHEDULER__PARSE_DAGS_INTERVAL
+      #     value: "30"
+      #   - name: AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL
+      #     value: "30"
+      #   - name: AIRFLOW__LOGGING__REMOTE_LOGGING
+      #     value: "False"
+      #   - name: AIRFLOW__LOGGING__BASE_LOG_FOLDER
+      #     value: "/opt/airflow/logs"
+      #   - name: AIRFLOW__CELERY__RESULT_BACKEND
+      #     value: db+postgresql://airflow:airflow@postgres/airflow
+      #   - name: AIRFLOW__CORE__FERNET_KEY
+      #     value: dGhpc2lzYWZlcm5ldGtleWZvcmFpcmZsb3cxMjM=
+      - name: dag-processor
+        image: osclimate/airflow:2.9.3
+        securityContext:
+          runAsUser: 50000
+          runAsGroup: 50000
+        command: [ "airflow" ]
+        args: [ "dag-processor" ]
+        volumeMounts:
+        - name: dags
+          mountPath: /opt/airflow/dags
+        - name: logs
+          mountPath: /opt/airflow/logs
+        env:
+        - name: AIRFLOW__CORE__EXECUTOR
+          # value: "LocalExecutor"
+          value: CeleryExecutor
+        - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+          value: "postgresql+psycopg2://airflow:airflow123$@postgres:5432/airflow"
+        - name: AIRFLOW__CORE__DAGS_FOLDER
+          value: /opt/airflow/dags
+        - name: AIRFLOW__LOGGING__LOGGING_LEVEL
+          value: INFO
+        - name: AIRFLOW__SCHEDULER__USE_DAG_PROCESSOR
+          value: "True"
+        - name: AIRFLOW__SCHEDULER__PARSE_DAGS_INTERVAL
+          value: "30"
+        - name: AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL
+          value: "30"
+        - name: AIRFLOW__LOGGING__REMOTE_LOGGING
+          value: "False"
+        - name: AIRFLOW__LOGGING__BASE_LOG_FOLDER
+          value: "/opt/airflow/logs"
+      volumes:
+      - name: dags
+        persistentVolumeClaim:
+          claimName: airflow-dags-pvc
+      - name: logs
+        persistentVolumeClaim:
+          claimName: airflow-logs-pvc
+      # volumes:
+      # - name: dags
+      #   hostPath:
+      #     path: /dags
+      #     type: Directory
