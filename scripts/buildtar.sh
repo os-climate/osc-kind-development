@@ -2,8 +2,9 @@
 set -e
 
 IMAGES=(
-  "osclimate/do"
-  # "apache/airflow:2.9.3"
+  # "osclimate/airflow:3.0.3"
+  "osclimate/airflow:2.9.3"
+  "apache/airflow:2.9.3"
   "osclimate/minio:1.0"
   "quay.io/osclimate/hive-metastore:latest"
   "postgres:14"

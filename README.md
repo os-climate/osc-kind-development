@@ -48,7 +48,10 @@ The kind-config.yaml will be generated dynamically when you run kind-cluster.sh.
 "- hostPath: **<home>/kind-development/dags**   # Replace with your local directory
         containerPath: /dags  # Path inside the Kind container"
 
+Note : Scripts are in scripts folder. navigate to script folder and execute the script
+
 ```bash
+cd ./script
 chmod +x kind-cluster.sh
 ```
 
@@ -72,6 +75,32 @@ Execute the "./release.sh" script to build Aiflow , Trino and MinIo images to lo
 ./release.sh
 ```
 
+# Optional 1 : Docker image bundler ( buildtar.sh )
+
+This script saves a predefined set of Docker images into .tar archives and bundles them into a single ZIP file. It is useful for transferring images to air-gapped or offline environments where direct image pulls from registries are not possible.
+
+Pulls or uses already available Docker images locally. Make sure all required images are in local.
+
+Saves each image as a .tar file in a temporary directory (docker_tar_files/).
+
+Zips all .tar files into a single archive: docker_images_bundle.zip.
+
+```bash
+chmod +x bundle_docker_images.sh
+
+./bundle_docker_images.sh
+```
+
+# Optional : Load Docker image from tar file into kind cluster
+
+This script extracts a zipped bundle of Docker images (in .tar format) and loads them into a specified Kind (Kubernetes-in-Docker) cluster. This is especially useful for offline environments or preloading necessary images into cluster.
+
+```bash
+./load_localtar_to_kind.sh
+```
+
+# Option 2 : load all required docker images into kind cluster from local.
+This option not required , if you use option 1
 Execute the "./load-images-into-kind.sh" script to load Aiflow , Trino and MinIo images to kind cluster  .
 
 ```bash
