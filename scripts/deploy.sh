@@ -57,10 +57,6 @@ create_namespace() {
     kubectl create namespace $NAMESPACE || echo "Namespace $NAMESPACE already exists."
     kubectl apply -f $DEPLOYMENT_DIR/deployment/airflow/service-account.yaml -n $NAMESPACE
     
-    # kubectl apply -f $DEPLOYMENT_DIR/deployment/airflow/airflow-role.yaml
-    # kubectl apply -f $DEPLOYMENT_DIR/deployment/airflow/airflow-rolebinding.yaml
-    # kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
-
 }
 
 
