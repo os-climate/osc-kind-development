@@ -1,38 +1,11 @@
 #!/bin/bash
 
-
-
 set -e
 
 # Globals
 NAMESPACE="osclimate"
 
 KIND_CLUSTER="osclimate-cluster"
-
-AIRFLOW_RELEASE="airflow"
-# RELEASE_NAME="airflow"
-VALUES_FILE="airflow-values.yaml"
-AIRFLOW_VERSION="1.15.0"
-
-TRINO_VALUES_FILE="trino-values.yaml"
-TRINO_RELEASE="trino"
-TRINO_VERSION="0.34.0"
-
-MINIO_VALUES_FILE="minio-values.yaml"
-MINIO_RELEASE="minio"
-MINIO_VERSION="5.3.0"
-
-AIRFLOW_IMAGE="osclimate/airflow"
-AIRFLOW_TAG="2.9.3"
-
-MINIO_IMAGE="osclimate/minio"
-MINIO_TAG="1.0"
-
-TRINO_IMAGE="osclimate/trino"
-TRINO_TAG="1.0"
-
-
-# DEPLOYMENT_DIR=$(pwd)
 
 # Get the directory where the script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -58,7 +31,6 @@ create_namespace() {
     kubectl apply -f $DEPLOYMENT_DIR/deployment/airflow/service-account.yaml -n $NAMESPACE
     
 }
-
 
 deploy_postgres(){
 
@@ -98,6 +70,12 @@ deploy_airflow() {
     while [[ $(kubectl get pod $AIRFLOW_POD_NAME -n $NAMESPACE -o jsonpath='{.status.phase}') != "Running" ]]; do
       echo "Pod $AIRFLOW_POD_NAME is not ready yet. Retrying..."
       sleep 5
+    done
+
+    # Wait until the pod has at least one ready container
+    while [[ $(kubectl get pod $AIRFLOW_POD_NAME -n $NAMESPACE -o jsonpath='{.status.containerStatuses[0].ready}') != "true" ]]; do
+    echo "Container in pod $AIRFLOW_POD_NAME is not ready yet..."
+    sleep 5
     done
 
     echo "Starting port-forwarding for pod $AIRFLOW_POD_NAME..."
@@ -189,6 +167,29 @@ deploy_minio() {
 
 
 }
+verify_airflow_portforward(){
+
+    echo "Checking if Airflow is listening on port 8080 inside the pod..."
+    
+    AIRFLOW_POD_NAME=$(kubectl get pods -n $NAMESPACE -l app=airflow -o jsonpath='{.items[0].metadata.name}')
+
+    echo "Waiting for pod $AIRFLOW_POD_NAME to be ready..."
+    while [[ $(kubectl get pod $AIRFLOW_POD_NAME -n $NAMESPACE -o jsonpath='{.status.phase}') != "Running" ]]; do
+      echo "Pod $AIRFLOW_POD_NAME is not ready yet. Retrying..."
+      sleep 5
+    done
+
+    PORT=8080
+    IS_PORT_OPEN=$(kubectl exec -n $NAMESPACE $AIRFLOW_POD_NAME -- sh -c "netstat -tuln | grep ':$PORT ' || true")
+
+    if [ -z "$IS_PORT_OPEN" ]; then
+        echo "Airflow is NOT listening on port $PORT inside the pod. Skipping port-forward."
+    else
+        echo "Airflow is listening on port $PORT. Starting port-forward..."
+        nohup kubectl port-forward $AIRFLOW_POD_NAME $PORT:$PORT -n $NAMESPACE > port-forward-airflow.log 2>&1 &
+        echo "Port-forwarding started at http://localhost:$PORT"
+    fi
+}
 # Verify Deployment
 verify_deployment() {
     echo "Verifying  deployment..."
@@ -197,34 +198,6 @@ verify_deployment() {
 }
 
 
-# 
-load_images(){
-    kind load docker-image $AIRFLOW_IMAGE:$AIRFLOW_TAG -n $KIND_CLUSTER 
-    kind load docker-image $TRINO_IMAGE:$TRINO_TAG -n $KIND_CLUSTER
-    kind load docker-image $MINIO_IMAGE:$MINIO_TAG -n $KIND_CLUSTER 
-
-}
-load_airflow_image(){
-    kind load docker-image $AIRFLOW_IMAGE:$AIRFLOW_TAG -n $KIND_CLUSTER
-
-}
-load_trino_image(){
-    kind load docker-image $TRINO_IMAGE:$TRINO_TAG -n $KIND_CLUSTER
-
-}
-load_minio_image(){
-    kind load docker-image $MINIO_IMAGE:$MINIO_TAG -n $KIND_CLUSTER
-
-}
-
-# 
-create_pvc(){
-    kubectl apply -f airflow-local-dags-folder-pv.yaml
-    kubectl apply -f airflow-local-dags-folder-pvc.yaml -n $NAMESPACE
-    kubectl apply -f airflow-local-logs-folder-pv.yaml 
-    kubectl apply -f airflow-local-logs-folder-pvc.yaml -n $NAMESPACE
-}
-
 port_forward(){
 
   kubectl port-forward svc/airflow-webserver 8080:8080 -n osclimate & \
@@ -232,23 +205,6 @@ port_forward(){
   kubectl port-forward svc/minio 9001:9001 -n osclimate $
 }
 
-port_forward_airflow() {
-    echo "Setting up port-forwarding for Airflow..."
-    kubectl port-forward svc/$AIRFLOW_RELEASE-webserver 8080:8080 -n $NAMESPACE &
-    echo "Airflow UI is accessible at http://localhost:8080"
-}
-
-port_forward_trino() {
-    echo "Setting up port-forwarding for Trino..."
-    kubectl port-forward svc/$TRINO_RELEASE 8081:8080 -n $NAMESPACE &
-    echo "Trino UI is accessible at http://localhost:8081"
-}
-
-port_forward_minio() {
-    echo "Setting up port-forwarding for MinIO..."
-    kubectl port-forward svc/$MINIO_RELEASE 9000:9000 -n $NAMESPACE &
-    echo "MinIO UI is accessible at http://localhost:9000"
-}
 delete_airflow(){
 
   echo "Deleting Airflow..."
@@ -285,32 +241,28 @@ main() {
         deploy)
             case "$2" in
                 airflow)
-                    load_airflow_image
                     deploy_postgres
                     deploy_airflow
                     verify_deployment
+                    verify_airflow_portforward
                     ;;
                 trino)
-                    load_trino_image
                     deploy_hive_metastore
                     deploy_trino
                     verify_deployment
                     ;;
                 minio)
-                    load_minio_image
                     deploy_minio
                     verify_deployment
                     ;;
                 all)
-                    # load_airflow_image
                     deploy_postgres
-                    # load_trino_image
                     deploy_hive_metastore
                     deploy_trino
-                    # load_minio_image
                     deploy_minio
                     deploy_airflow
                     verify_deployment
+                    verify_airflow_portforward
                     ;;
                 *)
                     echo "Usage: $0 deploy {airflow|trino|minio|all}"

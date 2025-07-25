@@ -50,25 +50,66 @@ EOF
 }
 
 # Function to delete a Kind cluster
-delete_cluster() {
+# delete_cluster() {
     
-    echo "Deleting Kind cluster: $CLUSTER_NAME..."
+#     echo "Deleting Kind cluster: $CLUSTER_NAME..."
 
-    # Delete PVCs
-    for pvc in $(kubectl get pvc -n $NAMESPACE -o jsonpath='{.items[*].metadata.name}'); do
-      echo "Deleting PVC $pvc in namespace $NAMESPACE"
-      kubectl delete pvc $pvc -n $NAMESPACE
-    done
+#     # Delete PVCs
+#     for pvc in $(kubectl get pvc -n $NAMESPACE -o jsonpath='{.items[*].metadata.name}'); do
+#       echo "Deleting PVC $pvc in namespace $NAMESPACE"
+#       kubectl delete pvc $pvc -n $NAMESPACE
+#     done
 
   
-    kubectl delete pv --grace-period=0 --force
+#     kubectl delete pv --grace-period=0 --force
     
+#     echo "PVC and PV cleanup complete."
+#     kind delete cluster --name "$CLUSTER_NAME"
+#         # kubectl config delete-context "$CLUSTER_NAME"
+
+#     echo "Cluster $CLUSTER_NAME deleted successfully."
+# }
+
+delete_cluster() {
+    if [ -z "$CLUSTER_NAME" ] || [ -z "$NAMESPACE" ]; then
+        echo "Error: CLUSTER_NAME or NAMESPACE is not set."
+        return 1
+    fi
+
+    echo "Deleting Kind cluster: $CLUSTER_NAME..."
+    echo "Cleaning up PVCs in namespace: $NAMESPACE"
+
+    PVC_LIST=$(kubectl get pvc -n "$NAMESPACE" -o jsonpath='{.items[*].metadata.name}')
+
+    if [ -z "$PVC_LIST" ]; then
+        echo "No PVCs found in namespace $NAMESPACE."
+    else
+        for pvc in $PVC_LIST; do
+            echo "Attempting to delete PVC: $pvc"
+            kubectl delete pvc "$pvc" -n "$NAMESPACE" --timeout=10s
+
+            # Check if PVC still exists (e.g. stuck in Terminating)
+            if kubectl get pvc "$pvc" -n "$NAMESPACE" > /dev/null 2>&1; then
+                echo "PVC $pvc is stuck. Removing finalizers..."
+                kubectl patch pvc "$pvc" -n "$NAMESPACE" -p '{"metadata":{"finalizers":null}}' --type=merge
+                kubectl delete pvc "$pvc" -n "$NAMESPACE" --grace-period=0 --force
+            else
+                echo "PVC $pvc deleted successfully."
+            fi
+        done
+    fi
+
+    echo "Deleting all PersistentVolumes..."
+    kubectl delete pv --grace-period=0 --force
+
     echo "PVC and PV cleanup complete."
+
+    echo "Deleting kind cluster: $CLUSTER_NAME"
     kind delete cluster --name "$CLUSTER_NAME"
-        # kubectl config delete-context "$CLUSTER_NAME"
 
     echo "Cluster $CLUSTER_NAME deleted successfully."
 }
+
 
 # Function to get cluster status
 status_cluster() {
