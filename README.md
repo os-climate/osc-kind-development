@@ -116,8 +116,8 @@ To deploy all datamesh components (Airflow , Trino and Mino) to kind cluster, ex
 Once deployment completed successfuly, all datamesh components can be accessible from the following urls
 
 Airflow : [http:/](http://localhost:8080)
-User id     - admin
-password    - airflow123
+User id     - airflow
+password    - airflow
 
 Trino   : [http:/](http://localhost:8081)
 User id     - admin

@@ -16,13 +16,11 @@ spec:
     spec:
       # nodeSelector: {}
       securityContext:
-        # runAsUser: 0
-        runAsUser: 50000 # airflow user in base image
+        runAsUser: 50000
         runAsGroup: 0
       initContainers:
       - name: init-airflow-db
         image: osclimate/airflow:2.9.3
-        # image: apache/airflow:2.9.3
         env:
         - name: AIRFLOW__CORE__EXECUTOR
           value: LocalExecutor
@@ -42,8 +40,8 @@ spec:
         - |
           airflow db init && \
           airflow users create \
-            --username admin \
-            --password airflow123 \
+            --username airflow \
+            --password airflow \
             --firstname Admin \
             --lastname User \
             --role Admin \
@@ -57,10 +55,8 @@ spec:
       containers:
       - name: airflow-webserver
         image: osclimate/airflow:2.9.3
-        # image: apache/airflow:2.9.3
         securityContext:
-          # runAsUser: 0
-          runAsUser: 50000 # airflow user in base image
+          runAsUser: 50000
           runAsGroup: 0
         args: [ "webserver" ]
         env:
@@ -84,10 +80,8 @@ spec:
           mountPath: /opt/airflow/logs
       - name: scheduler
         image: osclimate/airflow:2.9.3
-        # image: apache/airflow:2.9.3
         securityContext:
-          # runAsUser: 0
-          runAsUser: 50000 # airflow user in base image
+          runAsUser: 50000
           runAsGroup: 0
         args:
         - bash
