@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        # image: bitnami/postgresql:12.1.0
+        image: postgres:14
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          value: postgres
+        - name: POSTGRES_PASSWORD
+          value: postgres
+        # - name: AIRFLOW_USER
+        #   value: airflow
+        # - name: AIRFLOW_PASSWORD
+        #   value: airflow
+        # - name: AIRFLOW_DB
+        #   value: airflow
+        - name: MARQUEZ_USER
+          value: marquez
+        - name: MARQUEZ_PASSWORD
+          value: marquez
+        - name: MARQUEZ_DB
+          value: marquez
+        - name: EXAMPLE_USER
+          value: example
+        - name: EXAMPLE_PASSWORD
+          value: example
+        - name: EXAMPLE_DB
+          value: example
+        - name: ALLOW_EMPTY_PASSWORD
+          value: "yes"
+        volumeMounts:
+        - name: init-scripts
+          mountPath: /docker-entrypoint-initdb.d/init-db.sh
+          subPath: init-db.sh
+      volumes:
+      - name: init-scripts
+        configMap:
+          name: init-scripts

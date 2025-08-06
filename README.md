@@ -127,6 +127,8 @@ Mino    : [http:/](http://localhost:9005)
 User id     - minioAdmin
 password    - minio1234
 
+Marquez : [http:/](http://localhost:9003)
+
 If you find any issue , check all applications are deployed in kind cluster by executing the following 
 
 To check airflow pods successfully completed , run the following kubectl command 

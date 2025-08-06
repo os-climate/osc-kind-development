@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: marquez-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: marquez-web
+  template:
+    metadata:
+      labels:
+        app: marquez-web
+    spec:
+      containers:
+      - name: marquez-web
+        image: marquezproject/marquez-web:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: MARQUEZ_HOST
+          value: marquez
+        - name: MARQUEZ_PORT
+          value: "5000"
+        - name: REACT_APP_ADVANCED_SEARCH
+          value: "false"
+        stdin: true
+        tty: true

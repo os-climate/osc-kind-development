@@ -32,6 +32,8 @@ spec:
           value: aws://minioAdmin:minio1234@/?endpoint_url=http:%2F%2Fminio:9000
         - name: AIRFLOW_CONN_TRINO_CONNECTION
           value: trino://admin:@trino:8081/
+        # - name:_PIP_ADDITIONAL_REQUIREMENTS:
+        #   value: pandas openpyxl trino pyarrow boto3 apache-airflow-providers-openlineage
         # command: [ "sh", "-c", "airflow db migrate && airflow users create --username admin --password airflow123 --firstname Admin --lastname User --role Admin --email admin@example.com" ]
         # command: [ "/bin/bash", "-c" ]
         # args:
@@ -70,6 +72,16 @@ spec:
           value: aws://minioAdmin:minio1234@/?endpoint_url=http:%2F%2Fminio:9000
         - name: AIRFLOW_CONN_TRINO_CONNECTION
           value: trino://admin:@trino:8081/
+        - name: AIRFLOW__OPENLINEAGE__TRANSPORT
+          value: '{"type": "http", "url": "http://ma:5000", "endpoint": "api/v1/lineage"}'
+        - name: AIRFLOW__OPENLINEAGE__NAMESPACE
+          value: 'airflow-namespace'
+        - name: AIRFLOW__OPENLINEAGE__EXECUTION_TIMEOUT
+          value: '60'
+        - name: AIRFLOW__OPENLINEAGE__INCLUDE_FULL_TASK_INFO
+          value: 'True'
+        - name: AIRFLOW__OPENLINEAGE__DEBUG_MODE
+          value: 'True'
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
@@ -100,7 +112,16 @@ spec:
           value: trino://admin:@trino:8081/
         - name: AIRFLOW__KUBERNETES__NAMESPACE
           value: osclimate
-
+        - name: AIRFLOW__OPENLINEAGE__TRANSPORT
+          value: '{"type": "http", "url": "http://ma:5000", "endpoint": "api/v1/lineage"}'
+        - name: AIRFLOW__OPENLINEAGE__NAMESPACE
+          value: 'airflow-namespace'
+        - name: AIRFLOW__OPENLINEAGE__EXECUTION_TIMEOUT
+          value: '60'
+        - name: AIRFLOW__OPENLINEAGE__INCLUDE_FULL_TASK_INFO
+          value: 'True'
+        - name: AIRFLOW__OPENLINEAGE__DEBUG_MODE
+          value: 'True'
         volumeMounts:
         - name: airflow-dags
           mountPath: /opt/airflow/dags

@@ -1,0 +1,200 @@
+# ---
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   name: init-scripts
+# data:
+#   init-db.sh: |
+#     #!/bin/bash
+#     # Your original init-db.sh content
+#     echo "Running init-db script..."
+
+#   wait-for-it.sh: |
+#     #!/bin/bash
+#     # Your original wait-for-it.sh content
+#     echo "Waiting for PostgreSQL..."
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-marquez
+spec:
+  ports:
+  - port: 5432
+    targetPort: 5432
+  selector:
+    app: postgres-marquez
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-marquez
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-marquez
+  template:
+    metadata:
+      labels:
+        app: postgres-marquez
+    spec:
+      containers:
+      - name: postgres-marquez
+        # image: bitnami/postgresql:12.1.0
+        image: postgres:14
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          value: postgres
+        - name: POSTGRES_PASSWORD
+          value: postgres
+        # - name: AIRFLOW_USER
+        #   value: airflow
+        # - name: AIRFLOW_PASSWORD
+        #   value: airflow
+        # - name: AIRFLOW_DB
+        #   value: airflow
+        - name: MARQUEZ_USER
+          value: marquez
+        - name: MARQUEZ_PASSWORD
+          value: marquez
+        - name: MARQUEZ_DB
+          value: marquez
+        - name: EXAMPLE_USER
+          value: example
+        - name: EXAMPLE_PASSWORD
+          value: example
+        - name: EXAMPLE_DB
+          value: example
+        - name: ALLOW_EMPTY_PASSWORD
+          value: "yes"
+        volumeMounts:
+        - name: init-scripts
+          mountPath: /docker-entrypoint-initdb.d/init-db.sh
+          subPath: init-db.sh
+      volumes:
+      - name: init-scripts
+        configMap:
+          name: init-scripts
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: marquez
+spec:
+  selector:
+    app: marquez
+  ports:
+  - name: api
+    port: 5000
+    targetPort: 5000
+  - name: admin
+    port: 5001
+    targetPort: 5001
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: marquez
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: marquez
+  template:
+    metadata:
+      labels:
+        app: marquez
+    spec:
+      containers:
+      - name: marquez
+        image: marquezproject/marquez:latest
+
+        ports:
+        - containerPort: 5000
+        - containerPort: 5001
+        env:
+        - name: MARQUEZ_DB_HOST
+          value: postgres-marquez
+        - name: MARQUEZ_DB_PORT
+          value: "5432"
+        - name: MARQUEZ_DB_USER
+          value: marquez
+        - name: MARQUEZ_DB_PASSWORD
+          value: marquez
+        - name: MARQUEZ_DB_NAME
+          value: marquez
+        - name: POSTGRES_PORT
+          value: "5432"
+        - name: POSTGRES_HOST
+          value: postgres-marquez
+        command: [ "/bin/sh", "-c" ]
+        args:
+        - |
+          chmod +x /usr/src/app/wait-for-it.sh && \
+          /usr/src/app/wait-for-it.sh postgres-marquez:5432 -- ./entrypoint.sh
+        volumeMounts:
+        - name: wait-for-it
+          mountPath: /usr/src/app/wait-for-it.sh
+          subPath: wait-for-it.sh
+      volumes:
+      - name: wait-for-it
+        configMap:
+          name: init-scripts
+          defaultMode: 493
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: marquez-web
+spec:
+  ports:
+  - port: 3000
+    targetPort: 3000
+  selector:
+    app: marquez-web
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: marquez-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: marquez-web
+  template:
+    metadata:
+      labels:
+        app: marquez-web
+    spec:
+      containers:
+      - name: marquez-web
+        image: marquezproject/marquez-web:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: MARQUEZ_HOST
+          value: marquez
+        - name: MARQUEZ_PORT
+          value: "5000"
+        - name: MARQUEZ_BASE_URL
+          value: http://marquez:5000
+        - name: MARQUEZ_HOST
+          value: marquez
+        - name: MARQUEZ_ADMIN_PORT
+          value: "5001"
+        - name: MARQUEZ_PORT
+          value: "5000"
+        - name: POSTGRES_PORT
+          value: "5432"
+        - name: POSTGRES_HOST
+          value: postgres-marquez
+        - name: WEB_PORT
+          value: "3000"
+        - name: REACT_APP_ADVANCED_SEARCH
+          value: "false"
+        stdin: true
+        tty: true

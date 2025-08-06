@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: marquez
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: marquez
+  template:
+    metadata:
+      labels:
+        app: marquez
+    spec:
+      containers:
+        - name: marquez
+          image: marquezproject/marquez:latest
+          ports:
+            - containerPort: 5000
+            - containerPort: 5001
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              chmod +x /usr/src/app/wait-for-it.sh && \
+              /usr/src/app/wait-for-it.sh postgres:5432 -- ./entrypoint.sh
+          volumeMounts:
+            - name: wait-for-it
+              mountPath: /usr/src/app/wait-for-it.sh
+              subPath: wait-for-it.sh
+      volumes:
+        - name: wait-for-it
+          configMap:
+            name: init-scripts
