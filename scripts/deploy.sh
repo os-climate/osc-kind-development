@@ -167,6 +167,42 @@ deploy_minio() {
 
 
 }
+
+deploy_datalineage(){
+
+    echo "Deploying Minio..."
+
+    kubectl apply -f $DEPLOYMENT_DIR/deployment/datalineage/config-marguez.yaml -n $NAMESPACE 
+    kubectl apply -f $DEPLOYMENT_DIR/deployment/datalineage/marquez-stack.yaml -n $NAMESPACE 
+    
+    
+    # Wait for at least one Airflow pod to exist
+    echo "Waiting for minio pod to appear in namespace $NAMESPACE..."
+
+    MARQUEZ_PORT=3000
+    MARQUEZ_PORT_FWD=3000
+
+    echo "Checking for running marquez-web pod..."
+    MARQUEZ_POD_NAME=$(kubectl get pods -n $NAMESPACE -l app=marquez-web -o jsonpath='{.items[0].metadata.name}')
+
+    if [ -z "$MARQUEZ_POD_NAME" ]; then
+      echo "No marquez-web pod found. Exiting."
+      exit 1
+    fi
+
+    echo "Waiting for pod $MARQUEZ_POD_NAME to be ready..."
+    while [[ $(kubectl get pod $MARQUEZ_POD_NAME -n $NAMESPACE -o jsonpath='{.status.phase}') != "Running" ]]; do
+      echo "Pod $MARQUEZ_POD_NAME is not ready yet. Retrying..."
+      sleep 5
+    done
+
+    echo "Starting port-forwarding for pod $MARQUEZ_POD_NAME..."
+    nohup kubectl port-forward $MARQUEZ_POD_NAME $MARQUEZ_PORT_FWD:$MARQUEZ_PORT -n $NAMESPACE > port-forward-marquez-web.log 2>&1 &
+
+    echo "Port-forwarding started. Access Marquz at http://localhost:$MARQUEZ_PORT_FWD"
+
+}
+
 verify_airflow_portforward(){
 
     echo "Checking if Airflow is listening on port 8080 inside the pod..."
@@ -231,6 +267,18 @@ delete_minio(){
   kubectl delete svc minio -n $NAMESPACE
 
 }
+
+delete_marquez(){
+
+  echo "Deleting Marquez..."
+  kubectl delete deployment marquez -n $NAMESPACE
+  kubectl delete svc marquez -n $NAMESPACE
+  kubectl delete deployment marquez-web -n $NAMESPACE
+  kubectl delete svc marquez-web -n $NAMESPACE
+  kubectl delete deployment postgres-marquez -n $NAMESPACE
+  kubectl delete svc postgres-marquez -n $NAMESPACE
+  
+}
 # main
 main() {
     # check_dependencies
@@ -251,8 +299,9 @@ main() {
                     deploy_trino
                     verify_deployment
                     ;;
-                minio)
-                    deploy_minio
+                
+                datalineage)
+                    deploy_datalineage
                     verify_deployment
                     ;;
                 all)
@@ -262,6 +311,7 @@ main() {
                     deploy_minio
                     deploy_airflow
                     verify_deployment
+                    deploy_datalineage
                     verify_airflow_portforward
                     ;;
                 *)
@@ -280,6 +330,9 @@ main() {
                     ;;
                 minio)
                     delete_minio
+                    ;;
+                datalineage)
+                    delete_marquez
                     ;;
                 all)
                     echo "Deleting all deployments..."

@@ -20,7 +20,7 @@ docker buildx build  \
 
 docker buildx build  \
     -f Dockerfile-trino \
-    --platform linux/arm64 \
+    --platform linux/amd64 \
     --tag "$TRINO_TAG" \
     --load \
     .
@@ -35,10 +35,6 @@ docker buildx build  \
 docker pull quay.io/osclimate/hive-metastore:latest
 docker pull postgres:13
 docker pull postgres:14
+docker pull marquezproject/marquez-web:latest
+docker pull marquezproject/marquez:latest
 
-# docker pull apache/airflow:2.9.3
-
-# docker pull apache/airflow:3.0.2-python3.9
-
-# docker pull redis:7
-# docker pull redis:7.2-bookworm
